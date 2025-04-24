@@ -1,1 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Códigos de Barra (Previa 5 Columnas, Descarga A4 Vertical)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f4f4f4; /* Fondo ligero */
+            line-height: 1.5; /* Espaciado de línea estándar */
+        }
 
+        h1 {
+            color: #333;
+            text-align: center; /* Centrar título */
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px; /* Bordes más suaves */
+            width: 400px;
+            max-width: 95%; /* Mejor adaptabilidad */
+            background-color: #fff; /* Fondo blanco para el formulario */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Sombra sutil */
+        }
+
+        label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 4px; /* Espacio debajo del label */
+            display: block; /* Asegura que el label ocupe su propia línea */
+        }
+
+        input[type="text"],
+        select,
+        input[type="file"] {
+            padding: 10px; /* Mayor padding */
+            border: 1px solid #ccc; /* Borde más estándar */
+            border-radius: 4px; /* Bordes más suaves */
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1rem; /* Tamaño de fuente legible */
+            margin-top: 0; /* Eliminar margen superior por defecto */
+        }
+
+        button[type="button"] {
+            padding: 10px 20px; /* Mayor padding */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px; /* Bordes más suaves */
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px 0 5px 0; /* Margen vertical, más arriba */
+            transition: background-color 0.2s ease, opacity 0.2s ease; /* Transición suave */
+            align-self: center; /* Centrar botón en el flex container */
+        }
+
+        button[type="button"]:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        button[type="button"]:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.6; /* Ligeramente transparente cuando deshabilitado */
+        }
+
+        #barcode-table-container {
+            margin-top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+            padding-bottom: 15px; /* Espacio para scroll si es necesario */
+        }
+
+        #barcode-table {
+            width: auto; /* Ajustar al contenido */
+            border-collapse: collapse; /* Colapsar bordes */
+            margin-top: 10px;
+            /* Borde negro para la tabla principal */
+            border: 1px solid black;
+            white-space: nowrap; /* Evitar que el contenido se rompa */
+        }
+
+        /* MODIFICADO: Borde negro para cada celda */
+        #barcode-table th,
+        #barcode-table td {
+            /* Cambiado de #eee a black */
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        #barcode-table th {
+            background-color: #e9ecef; /* Fondo ligeramente gris */
+            color: #495057; /* Color de texto oscuro */
+        }
+
+        .barcode-cell {
+            width: auto !important; /* Permitir ajuste automático si es necesario */
+            padding: 5px !important;
+            min-height: 80px; /* Aumentar altura mínima celda si es necesario */
+            box-sizing: border-box;
+            min-width: 140px; /* Aumentar ancho mínimo para la celda para 5 columnas */
+        }
+
+        .barcode-cell img {
+            max-width: 130px; /* Ancho máximo imagen ajustado */
+            height: 50px; /* Altura imagen */
+            object-fit: contain;
+            display: block;
+            margin: 5px auto; /* Centrar imagen */
+        }
+
+        #pagination-container {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        #pagination-container button {
+             margin: 0 2px; /* Ajustar margen entre botones de paginación */
+             padding: 8px 12px; /* Ajustar padding */
+             font-size: 0.9rem;
+        }
+
+        #download-options-container {
+            margin-top: 30px; /* Más espacio superior */
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px; /* Mayor espacio entre botones */
+        }
+
+         #download-options-container button {
+             min-width: 180px; /* Ancho mínimo para botones de descarga */
+         }
+
+
+        #loading-indicator {
+            display: none;
+            margin-top: 20px; /* Más espacio */
+            padding: 12px 25px; /* Mayor padding */
+            background-color: #ffc107; /* Amarillo */
+            color: #343a40; /* Texto oscuro */
+            border-radius: 5px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center; /* Centrar texto */
+        }
+
+        /* Estilos para impresión (usados por el navegador si se imprime directamente) */
+        @media print {
+            /* Oculta todo excepto el contenido que queremos imprimir si jsPDF no se usa así */
+             body > *:not(.pdf-print-content) {
+                 display: none !important;
+                 visibility: hidden !important;
+             }
+
+            /* Asegura orientación vertical si el navegador lo respeta */
+             @page {
+                 size: portrait;
+                 margin: 10mm; /* Margen para la página */
+             }
+
+            /* Estilo específico para la tabla en impresión si jsPDF no la genera */
+            .pdf-print-content table {
+                width: 100% !important;
+                border-collapse: collapse;
+                border: 1px solid black !important; /* Borde de tabla negro */
+            }
+             .pdf-print-content td {
+                 border: 1px solid black !important; /* Borde de celda negro */
+                 padding: 5mm !important; /* Padding en mm para consistencia */
+                 text-align: center;
+                 vertical-align: middle;
+             }
+             .pdf-print-content img {
+                 max-width: 35mm !important; /* Ancho máximo ajustado para 5 col en A4 */
+                 height: 15mm !important; /* Altura ajustada */
+                 object-fit: contain;
+                 display: block;
+                 margin: 0 auto; /* Centrar imagen */
+             }
+        }
+
+    </style>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1>Generador Códigos de Barra (Previa 5 Columnas, Descarga A4 Vertical)</h1>
+
+    <form id="barcode-form">
+        <div>
+            <label for="type">Tipo:</label>
+            <select id="type" name="type">
+                <option value="code128">Code 128</option>
+                 </select>
+        </div>
+        <div>
+            <label for="excelFile">Subir Archivo Excel (.xlsx):</label>
+            <input type="file" id="excelFile" accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </div>
+        <div>
+            <label for="includeText">Mostrar Texto bajo código:</label>
+            <select id="includeText" name="includeText">
+                <option value="true">Sí (Incluido en imagen)</option>
+                <option value="false">No (Texto aparte)</option>
+            </select>
+        </div>
+        <button type="button" id="generate-button" disabled>Generar Vista Previa</button>
+    </form>
+
+    <div id="barcode-table-container">
+        </div>
+
+    <div id="pagination-container" style="display:none;">
+        <button type="button" id="first-page" disabled>&laquo; Primera</button>
+        <button type="button" id="prev-page" disabled>&lsaquo; Anterior</button>
+        <span id="current-page">Página 1 de 1</span>
+        <button type="button" id="next-page" disabled>Siguiente &rsaquo;</button>
+        <button type="button" id="last-page" disabled>Última &raquo;</button>
+    </div>
+
+    <div id="loading-indicator">Generando archivo, por favor espera...</div>
+
+    <div id="download-options-container" style="display:none;">
+        <button type="button" id="print-all-button">Imprimir Todo (vía PDF)</button>
+        <button type="button" id="download-all-word-button">Descargar Todo (Word)</button>
+        <button type="button" id="download-all-pdf-button">Descargar Todo (PDF)</button>
+        <button type="button" id="download-all-excel-button">Descargar Todo (Excel)</Excel>)</button>
+    </div>
+
+    <script>
+        // --- Referencias a Elementos DOM (sin cambios) ---
+        const excelFileUploader = document.getElementById('excelFile');
+        const generateButton = document.getElementById('generate-button');
+        const printAllButton = document.getElementById('print-all-button');
+        const downloadAllWordButton = document.getElementById('download-all-word-button');
+        const downloadAllPdfButton = document.getElementById('download-all-pdf-button');
+        const downloadAllExcelButton = document.getElementById('download-all-excel-button');
+        const barcodeTableContainer = document.getElementById('barcode-table-container');
+        const paginationContainer = document.getElementById('pagination-container');
+        const firstPageButton = document.getElementById('first-page');
+        const prevPageButton = document.getElementById('prev-page');
+        const nextPageButton = document.getElementById('next-page');
+        const lastPageButton = document.getElementById('last-page');
+        const currentPageSpan = document.getElementById('current-page');
+        const downloadOptionsContainer = document.getElementById('download-options-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const includeTextSelect = document.getElementById('includeText'); // Referencia al select de texto
+
+        // --- Variables de Estado ---
+        let excelData = [];
+        let barcodeDataPreview = []; // No se usa activamente para la generación, solo para guardar URLs de la preview
+        let currentPage = 1;
+        const rowsPerPagePreview = 12; // 12 filas en vista previa
+        const barcodesPerRowPreview = 5; // 5 columnas en vista previa
+        const itemsPerPagePreview = rowsPerPagePreview * barcodesPerRowPreview; // 60 items por página en vista previa
+
+        // --- Constante para descargas (Word/PDF) ---
+        const barcodesPerRowDownload = 5; // 5 columnas para descargas
+
+        let isProcessing = false;
+
+        // --- Event Listeners (sin cambios) ---
+        excelFileUploader.addEventListener('change', handleFile);
+        generateButton.addEventListener('click', generatePreview);
+        printAllButton.addEventListener('click', printAll);
+        downloadAllWordButton.addEventListener('click', downloadAllWord);
+        downloadAllPdfButton.addEventListener('click', downloadAllPdf);
+        downloadAllExcelButton.addEventListener('click', downloadAllExcel);
+        firstPageButton.addEventListener('click', goToFirstPage);
+        prevPageButton.addEventListener('click', goToPreviousPage);
+        nextPageButton.addEventListener('click', goToNextPage);
+        lastPageButton.addEventListener('click', goToLastPage);
+         // Añadir listener al select de texto para actualizar la preview
+         includeTextSelect.addEventListener('change', generatePreview);
+
+
+        // --- Funciones de Carga/Procesamiento Archivo (sin cambios lógicos importantes) ---
+        function handleFile(event) {
+            if (isProcessing) return;
+            const file = event.target.files[0];
+            resetState();
+
+            if (file) {
+                showLoading("Leyendo archivo Excel...");
+                isProcessing = true;
+                generateButton.disabled = true;
+                updateActionButtonsState(true);
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    let success = false;
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        if (!firstSheetName) throw new Error("El archivo Excel no contiene hojas.");
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                        excelData = jsonData
+                            .map(row => String(row[0] ?? "").trim())
+                            .filter(cell => cell !== "");
+
+                        if (excelData.length > 0) {
+                            success = true;
+                            currentPage = 1;
+                            generatePreview(); // Genera la primera página de la vista previa
+                            downloadOptionsContainer.style.display = 'flex';
+                        } else {
+                            alert('El archivo Excel no tiene datos válidos en la primera columna o está vacío.');
+                            resetState();
+                        }
+                    } catch (error) {
+                        console.error('Error al procesar el archivo Excel:', error);
+                        alert(`Error al procesar el archivo Excel: ${error.message}`);
+                        resetState();
+                    } finally {
+                        hideLoading();
+                        isProcessing = false;
+                        generateButton.disabled = excelData.length === 0; // Habilita si hay datos
+                        updateActionButtonsState(); // Actualiza estado de botones de descarga
+                    }
+                };
+                reader.onerror = function(error) {
+                    console.error('Error al leer el archivo:', error);
+                    alert('Error al leer el archivo Excel.');
+                    resetState();
+                    hideLoading();
+                    isProcessing = false;
+                    generateButton.disabled = true;
+                    updateActionButtonsState();
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                resetState();
+            }
+        }
+
+        function resetState() {
+             excelData = [];
+             barcodeDataPreview = [];
+             barcodeTableContainer.innerHTML = '';
+             paginationContainer.style.display = 'none';
+             downloadOptionsContainer.style.display = 'none';
+             hideLoading();
+             currentPage = 1;
+             generateButton.disabled = true; // Deshabilitar hasta que se cargue un archivo
+             updateActionButtonsState(true); // Deshabilitar botones de acción
+             if (excelFileUploader) excelFileUploader.value = ""; // Limpiar el input file
+        }
+
+
+        // --- Funciones de Vista Previa Paginada (Usa las constantes de preview) ---
+        function generatePreview() {
+            if (isProcessing || excelData.length === 0) {
+                if(excelData.length === 0) {
+                    barcodeTableContainer.innerHTML = '';
+                    paginationContainer.style.display = 'none';
+                }
+                generateButton.disabled = excelData.length === 0;
+                return;
+            }
+
+            const type = document.getElementById('type').value;
+            // includeText viene del select, controla si la API incluye el texto
+            const includeText = includeTextSelect.value === 'true';
+            let tableHTML = '<table id="barcode-table">';
+            barcodeDataPreview = []; // Limpiar datos de la preview
+
+            const totalItems = excelData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPagePreview);
+            if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+            else if (totalPages === 0) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * itemsPerPagePreview;
+            const endIndex = Math.min(startIndex + itemsPerPagePreview, totalItems);
+
+            let currentItemIndex = startIndex;
+            // Bucle para filas de la PREVIEW (12 filas)
+            for (let i = 0; i < rowsPerPagePreview; i++) {
+                tableHTML += '<tr>';
+                 // Bucle para columnas de la PREVIEW (5 columnas)
+                for (let j = 0; j < barcodesPerRowPreview; j++) {
+                    if (currentItemIndex < endIndex) {
+                        const text = excelData[currentItemIndex];
+                        // La API incluye/excluye el texto según la selección
+                        const apiUrl = getBarcodeApiUrl(type, text, includeText);
+                        // Se mantiene el padding y min-width para la celda de preview
+                        tableHTML += `<td class="barcode-cell"><img src="${apiUrl}" alt="Código ${text.replace(/"/g, '&quot;')}"></td>`;
+                         // Guardar URL por si se necesita (aunque jsPDF vuelve a fetch)
+                        barcodeDataPreview.push({ text: text, url: apiUrl });
+                    } else {
+                        // Celda vacía si no hay más datos para esta página
+                        tableHTML += '<td class="barcode-cell"></td>';
+                    }
+                    currentItemIndex++;
+                }
+                tableHTML += '</tr>';
+                if (currentItemIndex >= endIndex) break; // Salir si ya no hay más items en esta página
+            }
+
+            tableHTML += '</table>';
+            barcodeTableContainer.innerHTML = tableHTML;
+            updatePaginationButtons(totalItems);
+            updateActionButtonsState();
+            generateButton.disabled = false; // Habilita el botón Generar después de la preview
+        }
+
+        // --- Funciones de Paginación (Usa las constantes de preview) ---
+        function updatePaginationButtons(totalItems) {
+            const totalPages = Math.ceil(totalItems / itemsPerPagePreview);
+            currentPageSpan.textContent = `Página ${currentPage} de ${Math.max(totalPages, 1)}`;
+            paginationContainer.style.display = totalPages > 1 ? 'flex' : 'none';
+            firstPageButton.disabled = currentPage === 1;
+            prevPageButton.disabled = currentPage === 1;
+            nextPageButton.disabled = currentPage === totalPages || totalPages === 0;
+            lastPageButton.disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        function goToFirstPage() { if (currentPage !== 1) { currentPage = 1; generatePreview(); } }
+        function goToPreviousPage() { if (currentPage > 1) { currentPage--; generatePreview(); } }
+        function goToNextPage() {
+            const totalPages = Math.ceil(excelData.length / itemsPerPagePreview);
+            if (currentPage < totalPages) { currentPage++; generatePreview(); }
+        }
+        function goToLastPage() {
+            const totalPages = Math.ceil(excelData.length / itemsPerPagePreview);
+            if (currentPage !== totalPages && totalPages > 0) { currentPage = totalPages; generatePreview(); }
+        }
+
+        // --- Funciones para operar con TODOS los datos ---
+
+        // getBarcodeApiUrl (sin cambios lógicos, respeta includeText del select)
+        function getBarcodeApiUrl(type, text, includeText) {
+             const encodedText = encodeURIComponent(text);
+             // Escala y altura para una buena resolución en PDF
+             // includeText aquí viene directo del select, para que la API lo dibuje si es true
+             return `https://bwipjs-api.metafloor.com/?bcid=${encodeURIComponent(type)}&text=${encodedText}&includetext=${includeText}&scale=3&height=15`; // Ajuste de altura de imagen
+        }
+
+        // printAll (Llama a generateFullPdf y abre en nueva ventana con detección de bloqueo)
+        async function printAll() {
+             if (excelData.length === 0 || isProcessing) {
+                 alert('No hay datos cargados o hay un proceso en curso.');
+                 return;
+             }
+             showLoading("Generando PDF para imprimir...");
+             isProcessing = true;
+             updateActionButtonsState(true);
+
+             try {
+                 const pdfBlob = await generateFullPdf(); // generateFullPdf ya está en vertical
+
+                 if (pdfBlob) {
+                     const pdfUrl = URL.createObjectURL(pdfBlob);
+                     // MODIFICADO: Detectar si la ventana emergente fue bloqueada
+                     const printWindow = window.open(pdfUrl, '_blank');
+
+                     if (!printWindow || printWindow.closed || typeof printWindow.closed == 'undefined') {
+                          alert("Se ha generado el PDF, pero la ventana de impresión fue bloqueada por tu navegador.\n\nPor favor, permite las ventanas emergentes para este sitio e inténtalo de nuevo.");
+                     } else {
+                          alert("Se ha generado el PDF con todos los códigos en una nueva pestaña.\n\nPor favor, usa la función de impresión (Ctrl+P o Cmd+P) de tu visor de PDF en esa pestaña.");
+                          // Liberar el objeto URL después de que la ventana se abra (o falle)
+                           // Opcional: Retrasar para dar tiempo a la carga
+                           // setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+                     }
+                     // No liberar URL aquí, solo después de que la ventana se cierre o ya no se necesite
+
+
+                 } else {
+                      throw new Error("No se pudo generar el PDF.");
+                 }
+             } catch (error) {
+                  console.error("Error al generar PDF para impresión:", error);
+                  alert(`Error al generar PDF para impresión: ${error.message}`);
+             } finally {
+                 hideLoading();
+                 isProcessing = false;
+                 updateActionButtonsState();
+             }
+        }
+
+        // downloadAllWord (Genera HTML con 5 columnas y borde negro)
+        async function downloadAllWord() {
+             if (excelData.length === 0 || isProcessing) {
+                 alert('No hay datos cargados o hay un proceso en curso.');
+                 return;
+             }
+             showLoading("Generando documento Word...");
+             isProcessing = true;
+             updateActionButtonsState(true);
+
+             // Pequeña pausa para que el loading se muestre
+             await new Promise(resolve => setTimeout(resolve, 50));
+
+             try {
+                 const type = document.getElementById('type').value;
+                 // includeText viene del select, controla si la API incluye el texto en la IMAGEN
+                 const includeText = includeTextSelect.value === 'true';
+                 // Usa la constante de 5 columnas para la descarga
+                 const itemsPerRow = barcodesPerRowDownload; // 5 columnas
+
+                 let htmlContent = `<html><head><meta charset='UTF-8'><title>Todos los Códigos de Barra</title>`;
+                 // Añadir estilos básicos para Word (aunque Word puede ignorarlos o interpretarlos diferente)
+                 htmlContent += `<style>
+                     body { font-family: sans-serif; margin: 20mm; } /* Margen para simular A4 vertical */
+                     h1 { text-align: center; margin-bottom: 20mm; }
+                     table { border-collapse: collapse; width: 100%; border: 1px solid black; }
+                     td {
+                         border: 1px solid black; /* Borde negro para celdas */
+                         text-align: center;
+                         padding: 10px;
+                         vertical-align: middle;
+                     }
+                     img {
+                         display: block;
+                         margin: auto;
+                         max-width: 150px; /* Ajustar si es necesario */
+                         height: 50px; /* Ajustar si es necesario */
+                         /* Quitar o ajustar min-height/min-width que pueden interferir */
+                         min-height: 0;
+                         min-width: 0;
+                     }
+                     /* Añadir estilo para evitar saltos de página dentro de las celdas si es posible */
+                     td, tr {
+                         page-break-inside: avoid !important;
+                     }
+                     </style>`;
+                 htmlContent += `</head><body>`;
+                 htmlContent += `<h1>Listado Completo de Códigos de Barra</h1>`;
+
+                 htmlContent += `<table>`;
+
+                 for (let i = 0; i < excelData.length; i++) {
+                     const text = excelData[i];
+                     // La API incluye/excluye el texto según la selección
+                     const apiUrl = getBarcodeApiUrl(type, text, includeText);
+
+                     if (i % itemsPerRow === 0) { htmlContent += '<tr>'; }
+
+                     // Usar inline style para ancho, aunque CSS arriba ya lo define, es más seguro para Word
+                     // Se eliminó la etiqueta <br> explícita después de la imagen.
+                     // Si includeText es true, el texto ya viene en la imagen.
+                     // Si includeText es false, no dibujamos texto en HTML para Word, solo la imagen.
+                     htmlContent += `<td style="width: ${100 / itemsPerRow}%;">`;
+                     htmlContent += `<img src="${apiUrl}" alt="Barcode ${text.replace(/"/g, '&quot;')}" style="max-width: 150px; height: 50px; display: block; margin: auto; min-height: 0; min-width: 0;">`;
+                     // No se añade texto extra aquí para evitar duplicación si la API lo incluye.
+                     htmlContent += `</td>`;
+
+                     if ((i + 1) % itemsPerRow === 0 || i === excelData.length - 1) {
+                         // Rellenar celdas vacías si la última fila no está completa
+                         if (i === excelData.length - 1 && (i + 1) % itemsPerRow !== 0) {
+                             let remainingCells = itemsPerRow - ((i + 1) % itemsPerRow);
+                             for (let k = 0; k < remainingCells; k++) { htmlContent += '<td></td>'; }
+                         }
+                         htmlContent += '</tr>';
+                     }
+                 }
+
+                 htmlContent += '</table></body></html>';
+                 // Usar type 'application/vnd.ms-word' para mejor compatibilidad
+                 const blob = new Blob([htmlContent], { type: 'application/vnd.ms-word' });
+                 saveAs(blob, `codigos_barra_todos_vertical.doc`);
+
+             } catch (error) {
+                 console.error("Error al generar el documento Word:", error);
+                 alert(`Error al generar el documento Word: ${error.message}`);
+             } finally {
+                 hideLoading();
+                 isProcessing = false;
+                 updateActionButtonsState();
+             }
+        }
+
+        // downloadAllPdf (Genera PDF con 5 columnas, borde negro y vertical)
+        async function downloadAllPdf() {
+             if (excelData.length === 0 || isProcessing) {
+                 alert('No hay datos cargados o hay un proceso en curso.');
+                 return;
+             }
+             showLoading("Generando PDF (puede tardar)...");
+             isProcessing = true;
+             updateActionButtonsState(true);
+
+             // Pequeña pausa para que el loading se muestre
+             await new Promise(resolve => setTimeout(resolve, 50));
+
+             try {
+                 // generateFullPdf ya está modificado para 5 columnas, borde y vertical, y ahora maneja la duplicación de texto
+                 const pdfBlob = await generateFullPdf();
+                 if (pdfBlob) {
+                     saveAs(pdfBlob, 'codigos_barra_todos_vertical.pdf');
+                 } else {
+                      throw new Error("No se pudo generar el PDF.");
+                 }
+             } catch (error) {
+                 console.error("Error al generar PDF:", error);
+                 alert(`Error al generar PDF: ${error.message}`);
+             } finally {
+                 hideLoading();
+                 isProcessing = false;
+                 updateActionButtonsState();
+             }
+        }
+
+        // generateFullPdf (MODIFICADO: Layout para 5 columnas en A4 Vertical, dibuja bordes Y corrige duplicación de texto)
+        async function generateFullPdf() {
+             const { jsPDF } = window.jspdf;
+             const type = document.getElementById('type').value;
+             // includeText viene del select, controla si la API incluye el texto en la IMAGEN
+             const includeText = includeTextSelect.value === 'true';
+             const itemsPerRow = barcodesPerRowDownload; // Usa la constante de 5 columnas
+
+             let pdf = null;
+
+             try {
+                 // Ya configurado para A4 vertical
+                 pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+                 const pageHeight = pdf.internal.pageSize.getHeight(); // Aprox 297mm
+                 const pageWidth = pdf.internal.pageSize.getWidth();   // Aprox 210mm
+                 const margin = 10; // Margen en mm
+                 const usableWidth = pageWidth - 2 * margin; // Ancho útil
+                 const usableHeight = pageHeight - 2 * margin; // Alto útil
+
+                 // Dimensiones ajustadas para 5 columnas en A4 vertical
+                 // Ancho disponible por columna = (usableWidth / 5)
+                 // Dejamos un pequeño espacio entre columnas (e.g., 2mm a cada lado = 4mm total)
+                 const barcodeWidth = (usableWidth / itemsPerRow) - 4; // Ancho para la imagen
+                 const barcodeHeight = 15; // Altura de la imagen en mm (ajustar si no se ve bien)
+                 // MODIFICADO: Espacio para el texto dibujado, solo si includeText es false
+                 const textHeightDrawn = includeText ? 0 : 5; // Espacio solo si NOSOTROS dibujamos el texto
+                 const paddingY = 5; // Espacio arriba/abajo dentro de la celda
+                 const totalCellHeight = barcodeHeight + textHeightDrawn + 2 * paddingY; // Alto total de la "celda" en PDF
+
+                 // Calcular cuántas filas caben por página
+                 const maxRowsPerPage = Math.floor(usableHeight / totalCellHeight);
+                 if (maxRowsPerPage <= 0) {
+                      // Ajustar alerta para ser más específica si el texto aparte causa el problema
+                      const baseMessage = "Las dimensiones calculadas son demasiado grandes para una página A4 vertical.";
+                      const textMessage = includeText ? "" : "\nConsidera desactivar 'Mostrar Texto bajo código' si el problema persiste, ya que el texto aparte ocupa espacio adicional.";
+                      throw new Error(baseMessage + textMessage);
+                 }
+
+                 let x, y;
+                 let pageNumber = 1;
+
+                 const addHeadersFooters = () => {
+                     pdf.setFontSize(9);
+                     pdf.setTextColor(100);
+                     // Pie de página centrado
+                     pdf.text(`Página ${pageNumber}`, pageWidth / 2, pageHeight - margin / 2, { align: 'center' });
+                     pdf.setTextColor(0);
+                     // Reiniciar Y en cada página
+                     y = margin; // Empezar justo después del margen superior
+                 };
+
+                 addHeadersFooters(); // Añadir pie de página a la primera página
+
+                 let itemsProcessed = 0;
+
+                 for (let i = 0; i < excelData.length; i++) {
+                     const text = excelData[i];
+                      // La API incluye/excluye el texto según la selección del usuario
+                     const apiUrl = getBarcodeApiUrl(type, text, includeText);
+
+                     const col = i % itemsPerRow; // Columna actual (0, 1, 2, 3, 4)
+                     const rowInPage = Math.floor((i / itemsPerRow) % maxRowsPerPage); // Fila dentro de la página actual
+
+                     // Calcular coordenadas X e Y para este elemento
+                     // X = Margen Izquierdo + (Columna * Ancho Total de Columna)
+                     x = margin + col * (usableWidth / itemsPerRow);
+                     // Y = Y base de la página + (Fila en página * Alto Total de Celda)
+                     y = margin + rowInPage * totalCellHeight;
+
+
+                     // Añadir nueva página si estamos al inicio de una fila
+                     // y si hemos llenado las filas de la página anterior
+                     // Es importante revisar el salto de página *antes* de dibujar el contenido de la celda
+                     if (i > 0 && col === 0 && rowInPage === 0) {
+                         pdf.addPage();
+                         pageNumber++;
+                         addHeadersFooters(); // Añadir pie de página a la nueva página
+                         // Recalcular Y para el primer elemento de la nueva página
+                         y = margin + rowInPage * totalCellHeight; // rowInPage será 0 aquí
+                     }
+
+                     itemsProcessed++;
+                     // Actualizar indicador de carga cada X elementos
+                     if (itemsProcessed % 50 === 0) {
+                         showLoading(`Generando PDF... (${itemsProcessed}/${excelData.length})`);
+                         // Pequeña pausa para no bloquear completamente el hilo
+                         await new Promise(resolve => setTimeout(resolve, 1));
+                     }
+
+                     try { // Manejo de error por imagen
+                         const response = await fetch(apiUrl);
+                         if (!response.ok) throw new Error(`Error ${response.status} fetching image for ${text}`);
+                         const blob = await response.blob();
+                         const imgData = await new Promise((resolve, reject) => {
+                             const reader = new FileReader();
+                             reader.onloadend = () => resolve(reader.result);
+                             reader.onerror = reject;
+                             reader.readAsDataURL(blob);
+                         });
+
+                         // Dibujar el borde negro antes de añadir la imagen
+                         // Dibuja un rectángulo alrededor del área de la "celda"
+                         pdf.setDrawColor(0); // Color negro
+                         pdf.setLineWidth(0.2); // Grosor de línea fino
+                         pdf.rect(x, y, usableWidth / itemsPerRow, totalCellHeight); // Rectángulo del tamaño de la celda
+
+                         // Añadir la imagen dentro de la celda, centrada
+                         const imgX = x + (usableWidth / itemsPerRow - barcodeWidth) / 2;
+                         const imgY = y + paddingY; // Espacio superior dentro de la celda
+                         pdf.addImage(imgData, 'PNG', imgX, imgY, barcodeWidth, barcodeHeight, undefined, 'FAST');
+
+                         // MODIFICADO: Añadir texto debajo del código SOLO si includeText es FALSE (si la API NO lo incluyó)
+                         if (!includeText) {
+                             pdf.setFontSize(8); // Tamaño de fuente para el texto
+                             pdf.setTextColor(0); // Color de texto negro
+                             const textY = imgY + barcodeHeight + (textHeightDrawn / 2) + 0.5; // Posición Y debajo de la imagen, centrada en el espacio restante
+                             pdf.text(text, x + (usableWidth / itemsPerRow) / 2, textY, { align: 'center', baseline: 'middle' });
+                         }
+
+                     } catch (imgError) { // Dibujar error si falla una imagen
+                         console.error(`Error con código '${text}': ${imgError.message}`);
+                         pdf.setDrawColor(0); pdf.setFillColor(255, 200, 200); // Borde negro, fondo rosado claro
+                         pdf.rect(x, y, usableWidth / itemsPerRow, totalCellHeight, 'FD'); // Dibuja y rellena el rectángulo
+                         pdf.setFontSize(8);
+                         pdf.setTextColor(255, 0, 0); // Texto rojo
+                         pdf.text("Error", x + (usableWidth / itemsPerRow) / 2, y + totalCellHeight / 2, { align: 'center', baseline: 'middle' });
+                         pdf.setTextColor(0); // Volver a color negro
+                     }
+                 } // Fin del bucle for
+
+                 // Devolver el PDF como Blob
+                 return pdf.output('blob');
+
+             } catch (error) {
+                 console.error("Error durante la generación del PDF:", error);
+                 // Limpiar si hubo un error antes de crear el PDF object
+                 if (pdf) {
+                     try { pdf.deleteDocument(); } catch(e) { console.error("Error deleting PDF doc:", e); }
+                 }
+                 alert(`Error al generar el PDF: ${error.message}`); // Mostrar alerta de error
+                 return null; // Indicar fallo
+             }
+        }
+
+        // downloadAllExcel (sin cambios lógicos de orientación, sigue generando un Excel plano)
+        function downloadAllExcel() {
+             if (excelData.length === 0 || isProcessing) {
+                 alert('No hay datos cargados o hay un proceso en curso.');
+                 return;
+             }
+             showLoading("Generando archivo Excel...");
+             isProcessing = true;
+             updateActionButtonsState(true);
+
+             try {
+                 const type = document.getElementById('type').value;
+                 // includeText viene del select, controla si la API incluye el texto en la IMAGEN
+                 const includeText = includeTextSelect.value === 'true';
+                 const dataForSheet = excelData.map(text => {
+                      // La URL de la imagen ya incluye o no el texto según el select
+                     const apiUrl = getBarcodeApiUrl(type, text, includeText);
+                     // La función IMAGE() en Excel muestra la imagen desde la URL
+                     // No se añade el texto explícitamente en otra celda para evitar confusión,
+                     // el texto del código ya está en la primera columna.
+                     return [ text, `=IMAGE("${apiUrl}")` ];
+                 });
+                 const wb = XLSX.utils.book_new();
+                 // Añadir cabeceras
+                 const ws = XLSX.utils.aoa_to_sheet([["Texto del Código", "Código de Barra (Imagen)"], ...dataForSheet]);
+                 // Ajustar ancho de columnas
+                 ws['!cols'] = [ {wch: 30}, {wch: 40} ]; // Ancho estimado
+                 // Ajustar alto de filas para que quepa la imagen
+                 const rowHeight = 60; // Altura en puntos (ajustar si la imagen es muy grande)
+                 ws['!rows'] = excelData.map(() => ({ hpt: rowHeight }));
+                 // Ajustar la primera fila (cabecera) si es necesario, por ahora usa altura por defecto
+                 // ws['!rows'][0] = { hpt: 20 }; // Ejemplo para cabecera
+
+                 XLSX.utils.book_append_sheet(wb, ws, "Todos los Códigos");
+                 XLSX.writeFile(wb, 'codigos_barra_todos.xlsx');
+             } catch (error) {
+                 console.error("Error al generar el archivo Excel:", error);
+                 alert(`Error al generar el archivo Excel: ${error.message}`);
+             } finally {
+                 hideLoading();
+                 isProcessing = false;
+                 updateActionButtonsState();
+             }
+        }
+
+        // --- Funciones Auxiliares (pequeños ajustes de estilo/texto) ---
+        function showLoading(message = "Procesando...") {
+             loadingIndicator.textContent = message;
+             loadingIndicator.style.display = 'block';
+        }
+        function hideLoading() {
+             loadingIndicator.style.display = 'none';
+        }
+        function updateActionButtonsState(forceDisable = false) {
+             const isDisabled = forceDisable || isProcessing || excelData.length === 0;
+             printAllButton.disabled = isDisabled;
+             downloadAllWordButton.disabled = isDisabled;
+             downloadAllPdfButton.disabled = isDisabled;
+             downloadAllExcelButton.disabled = isDisabled;
+             // generateButton se habilita/deshabilita en handleFile y generatePreview
+        }
+
+        // Inicializar estado al cargar la página
+        generateButton.disabled = true;
+        updateActionButtonsState(true);
+
+    </script>
+</body>
+</html>
